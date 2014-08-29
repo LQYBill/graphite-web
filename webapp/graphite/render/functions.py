@@ -936,6 +936,59 @@ def integral(requestContext, seriesList):
   return results
 
 
+def integralByInterval(requestContext, seriesList, intervalUnit):
+  """
+  This will do the same as integral() funcion, except offsetting the total to 0 at
+  the given time in the parameter "from"
+  Useful for finding totals per hour/day/week/..
+
+  Example:
+
+  .. code-block:: none
+
+  &target=integralByInterval(company.sales.perMinute, "1d")&from=midnight-10days
+
+  This would start at zero on the left side of the graph, adding the sales each
+  minute, and show the evolution of sales per day during the last 10 days.
+  """
+  # Summarize all the series in the seriesList
+  newSerie = sumSeries(requestContext, seriesList)
+  # Default to negative. parseTimeOffset defaults to +
+  if intervalUnit[0].isdigit():
+    intervalUnit = '-' + intervalUnit
+  delta = parseTimeOffset(intervalUnit)
+  results = []
+  newValues = []
+
+  # Current accumulated value
+  current = 0.0
+  count = 0
+  for val in newSerie[0]:
+    # Calculate the TimeStamp of the value
+    time = newSerie[0].start + newSerie[0].step * count
+    if time == int(timestamp(requestContext['startTime'] - delta)) or (0 < int(time - timestamp(requestContext['startTime'] - delta)) < newSerie[0].step):
+      # Offset the current accumulated value to 0 at the begin of the interval
+      current = 0.0
+      # Advance to the next interval
+      delta = delta + parseTimeOffset(intervalUnit)
+    # Do the integral only if the TimeStemp of the value is in the interval
+    else:
+      if val is None:
+        newValues.append(current)
+      else:
+        current += val
+        newValues.append(current)
+    # Increase the number of the value in the list at the end of the for loop
+    count = count + 1
+
+  newName = "integral(%s)" % newSerie[0].name
+  newSeries = TimeSeries(newName, timestamp(requestContext['startTime']), timestamp(requestContext['endTime']), newSerie[0].step, newValues)
+  newSeries.pathExpression = newName
+  results.append(newSeries)
+
+  return results
+
+
 def nonNegativeDerivative(requestContext, seriesList, maxValue=None):
   """
   Same as the derivative function above, but ignores datapoints that trend
@@ -2964,6 +3017,7 @@ SeriesFunctions = {
   'derivative' : derivative,
   'perSecond' : perSecond,
   'integral' : integral,
+  'integralByInterval' : integralByInterval,
   'percentileOfSeries': percentileOfSeries,
   'nonNegativeDerivative' : nonNegativeDerivative,
   'log' : logarithm,
