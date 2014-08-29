@@ -956,7 +956,9 @@ def integralByInterval(requestContext, seriesList, intervalUnit):
   # Default to negative. parseTimeOffset defaults to +
   if intervalUnit[0].isdigit():
     intervalUnit = '-' + intervalUnit
-  delta = parseTimeOffset(intervalUnit)
+  interval = parseTimeOffset(intervalUnit)
+  # delta will be used to determine whether we've entered the next interval
+  delta = interval
   results = []
   newValues = []
 
@@ -970,7 +972,7 @@ def integralByInterval(requestContext, seriesList, intervalUnit):
       # Offset the current accumulated value to 0 at the begin of the interval
       current = 0.0
       # Advance to the next interval
-      delta = delta + parseTimeOffset(intervalUnit)
+      delta = delta + interval
     # Do the integral only if the TimeStemp of the value is in the interval
     else:
       if val is None:
